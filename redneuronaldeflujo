@@ -1,0 +1,61 @@
+import tensorflow as tf
+
+# Definir los parámetros de la red neuronal
+num_input = 28  # número de características de entrada
+timesteps = 28  # longitud de la secuencia
+num_hidden = 128  # número de unidades en la capa oculta
+num_classes = 10  # número de clases de salida
+
+# Definir los datos de entrada y salida
+X = tf.placeholder("float", [None, timesteps, num_input])
+Y = tf.placeholder("float", [None, num_classes])
+
+# Definir los pesos y sesgos para las capas de entrada y oculta
+weights = {
+    'in': tf.Variable(tf.random_normal([num_input, num_hidden])),
+    'out': tf.Variable(tf.random_normal([num_hidden, num_classes]))
+}
+biases = {
+    'in': tf.Variable(tf.random_normal([num_hidden])),
+    'out': tf.Variable(tf.random_normal([num_classes]))
+}
+
+# Definir la arquitectura de la red neuronal
+def RNN(X, weights, biases):
+    X = tf.transpose(X, [1, 0, 2])
+    X = tf.reshape(X, [-1, num_input])
+    X = tf.matmul(X, weights['in']) + biases['in']
+    X = tf.split(X, timesteps, 0)
+    lstm_cell = tf.contrib.rnn.BasicLSTMCell(num_hidden, forget_bias=1.0)
+    outputs, states = tf.contrib.rnn.static_rnn(lstm_cell, X, dtype=tf.float32)
+    return tf.matmul(outputs[-1], weights['out']) + biases['out']
+
+# Definir la función de pérdida y el optimizador
+logits = RNN(X, weights, biases)
+loss_op = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=Y))
+optimizer = tf.train.AdamOptimizer(learning_rate=0.01)
+train_op = optimizer.minimize(loss_op)
+
+# Inicializar las variables globales
+init = tf.global_variables_initializer()
+
+# Entrenar la red neuronal
+with tf.Session() as sess:
+    sess.run(init)
+    for step in range(1, num_steps+1):
+        batch_x, batch_y = next_batch(batch_size, X_train, y_train)
+        batch_x = batch_x.reshape((batch_size, timesteps, num_input))
+        sess.run(train_op, feed_dict={X: batch_x, Y: batch_y})
+        if step % display_step == 0 or step == 1:
+            loss = sess.run(loss_op, feed_dict={X: batch_x, Y: batch_y})
+            acc = sess.run(accuracy, feed_dict={X: batch_x, Y: batch_y})
+            print("Step " + str(step) + ", Minibatch Loss= " + \
+                  "{:.4f}".format(loss) + ", Training Accuracy= " + \
+                  "{:.3f}".format(acc))
+    print("Optimization Finished!")
+    
+    # Calcular la precisión de la red neuronal en los datos de prueba
+    test_data = test_data.reshape((-1, timesteps, num_input))
+    test_label = dense_to_one_hot(test_label, num_classes)
+    print("Testing Accuracy:", \
+        sess.run(accuracy, feed_dict={X: test_data, Y: test_label}))
